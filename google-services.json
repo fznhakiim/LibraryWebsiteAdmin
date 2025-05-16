@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1072841350622",
+    "firebase_url": "https://aplikasilogin-70f9b-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "aplikasilogin-70f9b",
+    "storage_bucket": "aplikasilogin-70f9b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1072841350622:android:4304d6bef21b0747ff914f",
+        "android_client_info": {
+          "package_name": "com.example.aplikasilogin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClxikFbCW65FM37OX8frv7GI3gKZ1VoPQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
