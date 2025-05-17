@@ -58,3 +58,9 @@ async def delete_book(book_id: str):
         raise HTTPException(status_code=404, detail="Book not found")
     doc_ref.delete()
     return {"message": "Book deleted"}
+
+@router.post("/", tags=["books"])
+async def create_book(book: dict):
+    book["createdAt"] = datetime.utcnow().isoformat()
+    db.collection("books").add(book)
+    return {"message": "Book added"}

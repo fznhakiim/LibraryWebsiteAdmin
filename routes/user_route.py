@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from utils.firestore_client import db
 from datetime import datetime, timezone, timedelta
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -12,21 +14,30 @@ indonesian_months = {
     "October": "Oktober", "November": "November", "December": "Desember"
 }
 
-def format_created_at(created_at_str: str):
+def format_created_at(created_at):
     try:
-        # Konversi dari UTC ke WIB (GMT+7)
-        dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+        # Jika sudah datetime, langsung dipakai
+        if isinstance(created_at, datetime):
+            dt = created_at
+        # Jika integer timestamp
+        elif isinstance(created_at, int):
+            dt = datetime.fromtimestamp(created_at)
+        # Jika string ISO
+        elif isinstance(created_at, str):
+            dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        else:
+            return str(created_at)  # fallback
+
+        # Konversi ke WIB
         dt_local = dt.astimezone(timezone(timedelta(hours=7)))
         formatted = dt_local.strftime("%d %B %Y, %H:%M WIB")
-
-        # Ganti nama bulan ke Bahasa Indonesia
         for en, idn in indonesian_months.items():
             formatted = formatted.replace(en, idn)
-
         return formatted
     except Exception as e:
-        print("Error format waktu:", e)
-        return created_at_str
+        logger.error(f"Error format waktu: {e}")
+        return str(created_at)
+
 
 @router.get("/by-username/{username}")
 async def get_user_by_username(username: str):
