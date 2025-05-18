@@ -74,6 +74,18 @@
   </ul>
 </div>
 
+<!-- Modal Peringatan -->
+<div v-if="showDeleteWarning" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+    <h2 class="text-xl font-bold text-red-600 mb-2">Tidak Bisa Menghapus</h2>
+    <p class="text-gray-800 mb-4">{{ deleteWarningMessage }}</p>
+    <button @click="showDeleteWarning = false"
+            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full">
+      Tutup
+    </button>
+  </div>
+</div>
+
 
       <!-- Modal Detail User -->
 <div v-if="showUserDetail" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
@@ -245,6 +257,9 @@
         userDetail: {},
         editMode: false,
         editForm: { id: null, username: '' },
+        showDeleteWarning: false,
+        deleteWarningMessage: '',
+
 
         // BOOKS
         books: [],
@@ -289,12 +304,21 @@
             })
             .catch(err => alert(err.response?.data?.detail || 'Gagal menambahkan user'));
         },
-        deleteUser(id) {
-          if (!confirm("Yakin ingin menghapus user ini?")) return;
-          axios.delete(`http://localhost:8000/users/${id}`)
-            .then(() => {
-              this.fetchUsers();
-            });
+      deleteUser(id) {
+  if (!confirm("Yakin ingin menghapus user ini?")) return;
+  axios.delete(`http://localhost:8000/users/${id}`)
+    .then(() => {
+      this.fetchUsers();
+    })
+    .catch(err => {
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'object' && detail.message) {
+        this.deleteWarningMessage = detail.message;
+      } else {
+        this.deleteWarningMessage = detail || 'Gagal menghapus user.';
+      }
+      this.showDeleteWarning = true;
+    });
         },
         editUser(user) {
           this.editMode = true;

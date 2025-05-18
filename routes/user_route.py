@@ -119,11 +119,20 @@ async def delete_user(user_id: str):
     if not user_doc.exists:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # (Optional) cek apakah ada buku yang belum dikembalikan, kalau mau batasi penghapusan
+    # Cek apakah user masih meminjam buku
     borrowed_books = list(user_ref.collection("borrowed_books").stream())
     if borrowed_books:
-        raise HTTPException(status_code=400, detail="User masih meminjam buku, tidak dapat dihapus")
+        borrowed_titles = [doc.to_dict().get("bookTitle", "Buku Tanpa Judul") for doc in borrowed_books]
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "User masih meminjam buku, tidak dapat dihapus.",
+                "jumlah": len(borrowed_books),
+                "daftar_buku": borrowed_titles
+            }
+        )
 
     # Hapus user
     user_ref.delete()
     return {"detail": "User deleted successfully"}
+
