@@ -17,3 +17,6 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     username: str
 
+class UserStatusUpdate(BaseModel):
+    is_active: bool
+

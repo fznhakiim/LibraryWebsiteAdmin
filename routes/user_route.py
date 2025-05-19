@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 from utils.firestore_client import db
 from datetime import datetime, timezone, timedelta
 import logging
+from fastapi import Body
+from schemas.user_schemas import UserStatusUpdate
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -112,27 +114,18 @@ async def get_user_with_borrowed_books(user_id: str):
     user_data["borrowed_books"] = borrowed_books
     return user_data
 
-@router.delete("/{user_id}")
-async def delete_user(user_id: str):
+@router.put("/status/{user_id}")
+async def update_user_status(user_id: str, status_update: UserStatusUpdate):
     user_ref = db.collection("users").document(user_id)
     user_doc = user_ref.get()
+
     if not user_doc.exists:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User tidak ditemukan.")
 
-    # Cek apakah user masih meminjam buku
-    borrowed_books = list(user_ref.collection("borrowed_books").stream())
-    if borrowed_books:
-        borrowed_titles = [doc.to_dict().get("bookTitle", "Buku Tanpa Judul") for doc in borrowed_books]
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "message": "User masih meminjam buku, tidak dapat dihapus.",
-                "jumlah": len(borrowed_books),
-                "daftar_buku": borrowed_titles
-            }
-        )
-
-    # Hapus user
-    user_ref.delete()
-    return {"detail": "User deleted successfully"}
+    try:
+        user_ref.update({"is_active": status_update.is_active})
+        return {"detail": f"Status user diperbarui menjadi {'aktif' if status_update.is_active else 'nonaktif'}."}
+    except Exception as e:
+        logger.error(f"Gagal memperbarui status user: {e}")
+        raise HTTPException(status_code=500, detail="Gagal memperbarui status user.")
 

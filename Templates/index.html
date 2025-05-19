@@ -49,19 +49,24 @@
       :key="user.id"
       class="flex justify-between items-center bg-gray-100 rounded p-4 mb-2"
     >
-      <span>Username: {{ user.username }}</span>
+      <div>
+        <p><strong>Username:</strong> {{ user.username }}</p>
+        <p class="text-sm mt-1">
+          <span
+            class="inline-block px-2 py-1 rounded-full font-medium"
+            :class="user.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+          >
+            {{ user.is_active ? 'Aktif' : 'Nonaktif' }}
+          </span>
+        </p>
+      </div>
       <div class="space-x-2">
         <button
-          @click="editUser(user)"
-          class="bg-yellow-400 text-white px-3 py-1 rounded hover:bg-yellow-500"
+          @click="toggleUserStatus(user)"
+          :class="user.is_active ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'"
+          class="text-white px-3 py-1 rounded"
         >
-          Edit
-        </button>
-        <button
-          @click="deleteUser(user.id)"
-          class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-        >
-          Hapus
+          {{ user.is_active ? 'Nonaktifkan' : 'Aktifkan' }}
         </button>
         <button
           @click="viewUserDetail(user.id)"
@@ -73,19 +78,6 @@
     </li>
   </ul>
 </div>
-
-<!-- Modal Peringatan -->
-<div v-if="showDeleteWarning" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-  <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-    <h2 class="text-xl font-bold text-red-600 mb-2">Tidak Bisa Menghapus</h2>
-    <p class="text-gray-800 mb-4">{{ deleteWarningMessage }}</p>
-    <button @click="showDeleteWarning = false"
-            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full">
-      Tutup
-    </button>
-  </div>
-</div>
-
 
       <!-- Modal Detail User -->
 <div v-if="showUserDetail" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
@@ -117,29 +109,6 @@
     </div>
   </div>
 </div>
-
-
-
-      <!-- Form Edit User -->
-      <div v-if="editMode" class="bg-white shadow-md rounded-lg p-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">Edit Pengguna</h2>
-        <div class="flex gap-4">
-          <input
-            type="text"
-            v-model="editForm.username"
-            placeholder="Edit username"
-            class="flex-1 border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-          />
-          <button
-            @click="updateUser"
-            class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            Simpan
-          </button>
-          <button @click="cancelEdit" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 ml-2">Batal</button>
-        </div>
-      </div>
-    </div>
 
     <!-- BOOKS TAB -->
     <div v-if="currentTab === 'books'">
@@ -255,11 +224,8 @@
         users: [],
         showUserDetail: false,
         userDetail: {},
-        editMode: false,
-        editForm: { id: null, username: '' },
         showDeleteWarning: false,
         deleteWarningMessage: '',
-
 
         // BOOKS
         books: [],
@@ -275,26 +241,27 @@
             : 'bg-gray-200 text-gray-700 hover:bg-gray-300';
         },
 
-          viewUserDetail(userId) {
-    axios.get(`http://localhost:8000/users/detail/${userId}`)
-      .then(res => {
-        this.userDetail = res.data;
-        this.showUserDetail = true;
-      })
-      .catch(() => alert("Gagal mengambil detail user"));
-  },
-
-  closeUserDetail() {
-    this.showUserDetail = false;
-    this.userDetail = {};
-  },
-
         // USERS
+        viewUserDetail(userId) {
+          axios.get(`http://localhost:8000/users/detail/${userId}`)
+            .then(res => {
+              this.userDetail = res.data;
+              this.showUserDetail = true;
+            })
+            .catch(() => alert("Gagal mengambil detail user"));
+        },
+
+        closeUserDetail() {
+          this.showUserDetail = false;
+          this.userDetail = {};
+        },
+
         fetchUsers() {
           axios.get('http://localhost:8000/users/')
             .then(res => { this.users = res.data; })
             .catch(() => { this.users = []; });
         },
+
         createUser() {
           if (!this.form.username.trim()) return alert("Username tidak boleh kosong");
           axios.post('http://localhost:8000/users/', this.form)
@@ -304,37 +271,20 @@
             })
             .catch(err => alert(err.response?.data?.detail || 'Gagal menambahkan user'));
         },
-      deleteUser(id) {
-  if (!confirm("Yakin ingin menghapus user ini?")) return;
-  axios.delete(`http://localhost:8000/users/${id}`)
+
+       // Soft Delete: Toggle status aktif/nonaktif
+ toggleUserStatus(user) {
+    const updatedStatus = !user.is_active;
+
+    axios.put(`http://localhost:8000/users/status/${user.id}`, {
+      is_active: updatedStatus
+    })
     .then(() => {
-      this.fetchUsers();
+      user.is_active = updatedStatus; // update tampilan UI setelah berhasil
     })
     .catch(err => {
-      const detail = err.response?.data?.detail;
-      if (typeof detail === 'object' && detail.message) {
-        this.deleteWarningMessage = detail.message;
-      } else {
-        this.deleteWarningMessage = detail || 'Gagal menghapus user.';
-      }
-      this.showDeleteWarning = true;
+      console.error("Gagal update status:", err);
     });
-        },
-        editUser(user) {
-          this.editMode = true;
-          this.editForm = Object.assign({}, user);
-        },
-        updateUser() {
-          if (!this.editForm.username.trim()) return alert("Username tidak boleh kosong");
-          axios.put(`http://localhost:8000/users/${this.editForm.id}`, { username: this.editForm.username })
-            .then(() => {
-              this.editMode = false;
-              this.fetchUsers();
-            });
-        },
-        cancelEdit() {
-          this.editMode = false;
-          this.editForm = { id: null, username: '' };
         },
 
         // BOOKS
@@ -343,6 +293,7 @@
             .then(res => { this.books = res.data; })
             .catch(() => { this.books = []; });
         },
+
         createBook() {
           if (!this.bookForm.title.trim() || !this.bookForm.author.trim()) {
             return alert("Judul dan Pengarang tidak boleh kosong");
@@ -357,6 +308,7 @@
             })
             .catch(err => alert(err.response?.data?.detail || 'Gagal menambahkan buku'));
         },
+
         deleteBook(id) {
           if (!confirm("Yakin ingin menghapus buku ini?")) return;
           axios.delete(`http://localhost:8000/books/${id}`)
@@ -364,10 +316,12 @@
               this.fetchBooks();
             });
         },
+
         editBook(book) {
           this.editBookMode = true;
           this.editBookForm = Object.assign({}, book);
         },
+
         updateBook() {
           if (!this.editBookForm.title.trim() || !this.editBookForm.author.trim()) {
             return alert("Judul dan Pengarang tidak boleh kosong");
@@ -385,6 +339,7 @@
             this.fetchBooks();
           });
         },
+
         cancelEditBook() {
           this.editBookMode = false;
           this.editBookForm = { id: null, title: '', author: '', stock: 0 };
@@ -395,6 +350,6 @@
         this.fetchBooks();
       }
     });
-  </script>
+</script>
 </body>
 </html>
