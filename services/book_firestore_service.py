@@ -1,9 +1,6 @@
 from utils.firestore_client import db
-
-def create_user(username: str):
-    doc_ref = db.collection('users').document()  # auto-generate ID
-    doc_ref.set({'username': username})
-    return doc_ref.id
+from pydantic import BaseModel
+from typing import Optional
 
 def get_user(user_id: str):
     doc = db.collection('users').document(user_id).get()
@@ -20,3 +17,12 @@ def update_user(user_id: str, username: str):
 
 def delete_user(user_id: str):
     db.collection('users').document(user_id).delete()
+
+def create_book(data: dict):
+    book_ref = db.collection('books').document()
+    book_ref.set({
+        "title": data["title"],
+        "author": data["author"],
+        "stock": data["stock"],
+        "imageUrl": data.get("imageUrl", None)
+    })

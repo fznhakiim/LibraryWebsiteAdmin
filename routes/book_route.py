@@ -1,10 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+
 from utils.firestore_client import db
 from datetime import datetime, timezone, timedelta
+import base64
+import os
+from model import Book
 
 router = APIRouter()
 
-# Helper format tanggal (sama dengan yang sudah dibuat)
+# Helper untuk format tanggal (sama seperti kamu punya)
 indonesian_months = {
     "January": "Januari", "February": "Februari", "March": "Maret",
     "April": "April", "May": "Mei", "June": "Juni",
@@ -37,10 +41,29 @@ async def get_books():
     return books
 
 @router.post("/", tags=["books"])
-async def create_book(book: dict):
-    # Buat dokumen baru otomatis id
-    book["createdAt"] = datetime.utcnow().isoformat()
-    doc_ref = db.collection("books").add(book)
+async def create_book(
+    title: str = Form(...),
+    author: str = Form(...),
+    stock: int = Form(...),
+    image: UploadFile = File(None)
+):
+    book_data = {
+        "title": title,
+        "author": author,
+        "stock": stock,
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+    
+    if image:
+        # Simpan file gambar ke folder static/images
+        os.makedirs("static/images", exist_ok=True)
+        file_path = f"static/images/{image.filename}"
+        with open(file_path, "wb") as buffer:
+            buffer.write(await image.read())
+        # Simpan URL file ke book_data
+        book_data["imageUrl"] = f"http://localhost:8000/{file_path}"
+    
+    doc_ref = db.collection("books").add(book_data)
     return {"id": doc_ref[1].id}
 
 @router.put("/{book_id}", tags=["books"])
@@ -58,9 +81,3 @@ async def delete_book(book_id: str):
         raise HTTPException(status_code=404, detail="Book not found")
     doc_ref.delete()
     return {"message": "Book deleted"}
-
-@router.post("/", tags=["books"])
-async def create_book(book: dict):
-    book["createdAt"] = datetime.utcnow().isoformat()
-    db.collection("books").add(book)
-    return {"message": "Book added"}
