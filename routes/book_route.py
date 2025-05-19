@@ -1,10 +1,12 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-
+import shutil
 from utils.firestore_client import db
 from datetime import datetime, timezone, timedelta
 import base64
 import os
 from model import Book
+from google.cloud import firestore
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -45,26 +47,28 @@ async def create_book(
     title: str = Form(...),
     author: str = Form(...),
     stock: int = Form(...),
-    image: UploadFile = File(None)
+    image: UploadFile = File(...)
 ):
+    # Simpan gambar
+    file_location = f"static/images/{image.filename}"
+    with open(file_location, "wb") as buffer:
+        shutil.copyfileobj(image.file, buffer)
+
+    # Buat URL
+    image_url = f"http://localhost:8000/static/images/{image.filename}"
+
+    # Simpan ke Firestore
     book_data = {
         "title": title,
         "author": author,
         "stock": stock,
-        "createdAt": datetime.utcnow().isoformat(),
+        "imageUrl": image_url,
+        "createdAt": datetime.utcnow().isoformat()
     }
-    
-    if image:
-        # Simpan file gambar ke folder static/images
-        os.makedirs("static/images", exist_ok=True)
-        file_path = f"static/images/{image.filename}"
-        with open(file_path, "wb") as buffer:
-            buffer.write(await image.read())
-        # Simpan URL file ke book_data
-        book_data["imageUrl"] = f"http://localhost:8000/{file_path}"
-    
-    doc_ref = db.collection("books").add(book_data)
-    return {"id": doc_ref[1].id}
+
+    db.collection("books").add(book_data)
+
+    return {"message": "Book created", "imageUrl": image_url}
 
 @router.put("/{book_id}", tags=["books"])
 async def update_book(book_id: str, book: dict):
@@ -81,3 +85,16 @@ async def delete_book(book_id: str):
         raise HTTPException(status_code=404, detail="Book not found")
     doc_ref.delete()
     return {"message": "Book deleted"}
+
+class StatusUpdate(BaseModel):
+    is_active: bool
+
+@router.put("/status/{book_id}", tags=["books"])
+async def update_book_status(book_id: str, status: StatusUpdate):
+    doc_ref = db.collection("books").document(book_id)
+    if not doc_ref.get().exists:
+        raise HTTPException(status_code=404, detail="Book not found")
+    
+    doc_ref.update({"is_active": status.is_active})
+    return {"message": f"Buku berhasil diupdate menjadi {'aktif' if status.is_active else 'nonaktif'}"}
+
