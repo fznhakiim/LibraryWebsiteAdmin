@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Depends
 from utils.firestore_client import db
+from firebase_admin import auth
 from datetime import datetime, timezone, timedelta
+from model import UserCreate
 import logging
 from fastapi import Body
 from schemas.user_schemas import UserStatusUpdate
@@ -39,6 +41,19 @@ def format_created_at(created_at):
     except Exception as e:
         logger.error(f"Error format waktu: {e}")
         return str(created_at)
+    
+async def verify_firebase_token(request: Request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+    
+    try:
+        id_token = auth_header.split(" ")[1]
+        decoded_token = auth.verify_id_token(id_token)
+        return decoded_token  # contains 'uid', 'email', etc.
+    except Exception as e:
+        logger.error(f"Token verification failed: {e}")
+        raise HTTPException(status_code=401, detail="Invalid Firebase token")
 
 
 @router.get("/by-username/{username}")
@@ -128,4 +143,41 @@ async def update_user_status(user_id: str, status_update: UserStatusUpdate):
     except Exception as e:
         logger.error(f"Gagal memperbarui status user: {e}")
         raise HTTPException(status_code=500, detail="Gagal memperbarui status user.")
-
+    
+@router.post("/", status_code=201)
+async def create_user(
+    user_data: UserCreate,
+    token_data: dict = Depends(verify_firebase_token)):
+    """
+    Creates a new user in Firestore using Firebase UID as document ID
+    Requires Firebase authentication
+    """
+    try:
+        # Get UID from verified Firebase token
+        uid = token_data['uid']
+        
+        # Prepare user data
+        user_dict = {
+            "username": user_data.username,
+            "email": user_data.email,
+            "phone": user_data.phone,
+            "is_active": user_data.is_active,
+            "createdAt": datetime.utcnow().isoformat(),
+        }
+        
+        # Create document with UID as document ID
+        user_ref = db.collection("users").document(uid)
+        await user_ref.set(user_dict)
+        
+        # Format the created timestamp
+        user_dict["id"] = uid
+        user_dict["createdAt"] = format_created_at(user_dict["createdAt"])
+        
+        return user_dict
+        
+    except Exception as e:
+        logger.error(f"Failed to create user: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to create user"
+        )
