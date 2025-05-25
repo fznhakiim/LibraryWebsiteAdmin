@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Login</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+  <div id="app" class="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
+    <h2 class="text-2xl font-bold text-center mb-6">Admin Login</h2>
+
+    <div class="space-y-4">
+      <input type="text" id="username" placeholder="Username"
+             class="w-full px-4 py-2 border border-gray-300 rounded" />
+      <input type="password" id="password" placeholder="Password"
+             class="w-full px-4 py-2 border border-gray-300 rounded" />
+
+      <button @click="loginAdmin"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded">
+        Login
+      </button>
+    </div>
+  </div>
+
+  <script>
+    new Vue({
+      el: "#app",
+      methods: {
+        async loginAdmin() {
+          const username = document.getElementById("username").value;
+          const password = document.getElementById("password").value;
+
+          const response = await fetch("http://localhost:8000/admin/login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ username, password }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem("admin_token", data.access_token);
+            window.location.href = "index.html";
+          } else {
+            alert("Login gagal. Username atau password salah.");
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

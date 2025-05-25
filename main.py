@@ -8,6 +8,10 @@ import os
 import shutil
 import uuid
 from dotenv import load_dotenv
+from routes import admin_route
+from routes import user_route
+
+
 
 load_dotenv()  # baca file .env otomatis
 
@@ -23,6 +27,8 @@ if not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
 db = firestore.Client()
 
 app = FastAPI()
+
+app.include_router(admin_route.router)
 
 # Setup CORS
 app.add_middleware(

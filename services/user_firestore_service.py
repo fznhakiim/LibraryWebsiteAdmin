@@ -1,4 +1,6 @@
 from utils.firestore_client import db
+from google.cloud import firestore
+
 
 def get_user(user_id: str):
     doc = db.collection('users').document(user_id).get()
@@ -15,3 +17,18 @@ def update_user(user_id: str, username: str):
 
 def delete_user(user_id: str):
     db.collection('users').document(user_id).delete()
+
+def search_users(query: str):
+    users_ref = db.collection("users")
+    docs = users_ref.stream()
+
+    result = []
+    for doc in docs:
+        data = doc.to_dict()
+        if query.lower() in data.get("username", "").lower() or \
+           query.lower() in data.get("email", "").lower() or \
+           query.lower() in data.get("fullname", "").lower():
+            user = data
+            user["id"] = doc.id
+            result.append(user)
+    return result

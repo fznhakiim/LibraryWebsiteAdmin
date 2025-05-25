@@ -1,9 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from utils.firestore_client import db
 from datetime import datetime, timezone, timedelta
 import logging
 from fastapi import Body
 from schemas.user_schemas import UserStatusUpdate
+from fastapi import Query
+from services.user_firestore_service import search_users, get_all_users
+from typing import Optional
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -39,6 +42,23 @@ def format_created_at(created_at):
     except Exception as e:
         logger.error(f"Error format waktu: {e}")
         return str(created_at)
+
+@router.get("/search")
+def search_user(q: str = Query(None, description="Keyword pencarian user")):
+    if not q:  # Jika query kosong, kembalikan semua user
+        users_ref = db.collection("users")
+        docs = users_ref.stream()
+        users = []
+        for doc in docs:
+            data = doc.to_dict()
+            data["id"] = doc.id
+            users.append(data)
+        return users
+
+    users = search_users(q)
+    if not users:
+        return []
+    return users
 
 
 @router.get("/by-username/{username}")
@@ -128,4 +148,4 @@ async def update_user_status(user_id: str, status_update: UserStatusUpdate):
     except Exception as e:
         logger.error(f"Gagal memperbarui status user: {e}")
         raise HTTPException(status_code=500, detail="Gagal memperbarui status user.")
-
+    
