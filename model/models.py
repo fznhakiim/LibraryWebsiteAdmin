@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 
 class Book(BaseModel):
@@ -6,3 +6,9 @@ class Book(BaseModel):
     author: str
     stock: int
     imageUrl: Optional[str] = None  # base64 string, bukan bytes
+
+class UserCreate(BaseModel):
+    username: str
+    email: EmailStr
+    phone: Optional[str] = None
+    is_active: bool = True

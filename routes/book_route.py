@@ -42,6 +42,18 @@ async def get_books():
         books.append(data)
     return books
 
+@router.get("/{book_id}", tags=["books"])
+async def get_book(book_id: str):
+    doc_ref = db.collection("books").document(book_id)
+    doc = doc_ref.get()
+    if doc.exists:
+        data = doc.to_dict()
+        if "createdAt" in data:
+            data["createdAt"] = format_created_at(data["createdAt"])
+        data["id"] = doc.id
+        return data
+    raise HTTPException(status_code=404, detail="Book not found")
+
 @router.post("/", tags=["books"])
 async def create_book(
     title: str = Form(...),
